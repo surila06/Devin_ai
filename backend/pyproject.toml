@@ -1,13 +1,13 @@
 [project]
 name = "stock-live-backend"
-version = "1.0.0"
-description = "Real-time stock data WebSocket server"
+version = "2.0.0"
+description = "Real-time stock data WebSocket server with Yahoo Finance"
 requires-python = ">=3.11"
 dependencies = [
-    "fastapi>=0.115.0",
+    "fastapi[standard]>=0.115.0",
     "uvicorn[standard]>=0.32.0",
     "websockets>=13.0",
-    "pydantic>=2.9.0",
+    "yfinance>=1.4.0",
 ]
 
 [build-system]
