@@ -1,15 +1,29 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { useStockWebSocket } from './hooks/useStockWebSocket';
 import { Header } from './components/Header';
 import { MarketOverview } from './components/MarketOverview';
 import { StockCard } from './components/StockCard';
 import { StockChart } from './components/StockChart';
+import { SearchBar } from './components/SearchBar';
 
 function App() {
   const { stocks, connected, lastUpdate } = useStockWebSocket();
   const [selectedTicker, setSelectedTicker] = useState<string>('AAPL');
+  const [searchQuery, setSearchQuery] = useState<string>('');
 
   const stockList = Object.values(stocks);
+
+  const filteredStocks = useMemo(() => {
+    if (!searchQuery.trim()) return stockList;
+    const query = searchQuery.toLowerCase();
+    return stockList.filter(
+      (stock) =>
+        stock.ticker.toLowerCase().includes(query) ||
+        stock.name.toLowerCase().includes(query) ||
+        stock.sector.toLowerCase().includes(query)
+    );
+  }, [stockList, searchQuery]);
+
   const selectedStock = stocks[selectedTicker];
 
   return (
@@ -25,15 +39,22 @@ function App() {
             <h2 className="text-sm font-semibold text-[#8b8fa3] uppercase tracking-wider mb-3">
               Watchlist
             </h2>
-            <div className="space-y-2 max-h-[calc(100vh-320px)] overflow-y-auto pr-1">
-              {stockList.map((stock) => (
-                <StockCard
-                  key={stock.ticker}
-                  stock={stock}
-                  isSelected={stock.ticker === selectedTicker}
-                  onClick={() => setSelectedTicker(stock.ticker)}
-                />
-              ))}
+            <SearchBar value={searchQuery} onChange={setSearchQuery} />
+            <div className="space-y-2 max-h-[calc(100vh-380px)] overflow-y-auto pr-1">
+              {filteredStocks.length > 0 ? (
+                filteredStocks.map((stock) => (
+                  <StockCard
+                    key={stock.ticker}
+                    stock={stock}
+                    isSelected={stock.ticker === selectedTicker}
+                    onClick={() => setSelectedTicker(stock.ticker)}
+                  />
+                ))
+              ) : (
+                <div className="text-center py-8">
+                  <p className="text-[#8b8fa3] text-sm">No stocks matching "{searchQuery}"</p>
+                </div>
+              )}
             </div>
           </div>
 

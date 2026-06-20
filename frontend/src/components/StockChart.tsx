@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useCallback } from 'react';
 import { createChart, CandlestickSeries, type IChartApi, type ISeriesApi, type CandlestickData, type Time, ColorType } from 'lightweight-charts';
 import type { Candle } from '../types/stock';
 
@@ -11,6 +11,16 @@ export function StockChart({ history, ticker }: StockChartProps) {
   const chartContainerRef = useRef<HTMLDivElement>(null);
   const chartRef = useRef<IChartApi | null>(null);
   const seriesRef = useRef<ISeriesApi<'Candlestick'> | null>(null);
+  const lastTickerRef = useRef<string>('');
+  const lastDataLenRef = useRef<number>(0);
+
+  const formatCandle = useCallback((candle: Candle): CandlestickData<Time> => ({
+    time: candle.time as Time,
+    open: candle.open,
+    high: candle.high,
+    low: candle.low,
+    close: candle.close,
+  }), []);
 
   useEffect(() => {
     if (!chartContainerRef.current) return;
@@ -40,7 +50,7 @@ export function StockChart({ history, ticker }: StockChartProps) {
       },
     });
 
-    const candlestickSeries = chart.addSeries(CandlestickSeries, {
+    const series = chart.addSeries(CandlestickSeries, {
       upColor: '#22c55e',
       downColor: '#ef4444',
       borderDownColor: '#ef4444',
@@ -50,7 +60,9 @@ export function StockChart({ history, ticker }: StockChartProps) {
     });
 
     chartRef.current = chart;
-    seriesRef.current = candlestickSeries;
+    seriesRef.current = series;
+    lastTickerRef.current = '';
+    lastDataLenRef.current = 0;
 
     const handleResize = () => {
       if (chartContainerRef.current) {
@@ -68,17 +80,34 @@ export function StockChart({ history, ticker }: StockChartProps) {
   }, []);
 
   useEffect(() => {
-    if (seriesRef.current && history.length > 0) {
-      const data: CandlestickData<Time>[] = history.map((candle) => ({
-        time: candle.time as Time,
-        open: candle.open,
-        high: candle.high,
-        low: candle.low,
-        close: candle.close,
-      }));
-      seriesRef.current.setData(data);
+    if (!seriesRef.current || history.length === 0) return;
+
+    try {
+      if (ticker !== lastTickerRef.current) {
+        const data = history.map(formatCandle);
+        seriesRef.current.setData(data);
+        lastTickerRef.current = ticker;
+        lastDataLenRef.current = history.length;
+        if (chartRef.current) {
+          chartRef.current.timeScale().fitContent();
+        }
+      } else if (history.length > lastDataLenRef.current) {
+        const newCandle = history[history.length - 1];
+        seriesRef.current.update(formatCandle(newCandle));
+        lastDataLenRef.current = history.length;
+      }
+    } catch (e) {
+      // Reset on error - full reload
+      try {
+        const data = history.map(formatCandle);
+        seriesRef.current.setData(data);
+        lastDataLenRef.current = history.length;
+        lastTickerRef.current = ticker;
+      } catch {
+        // Ignore secondary errors
+      }
     }
-  }, [history, ticker]);
+  }, [history, ticker, formatCandle]);
 
   return (
     <div
